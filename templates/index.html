@@ -759,7 +759,7 @@
             <button class="tablinks" onclick="openTab(event, 'Input')">Input</button>
             <button class="tablinks" onclick="openTab(event, 'Output')">Output</button>
             <button class="tablinks" onclick="openTab(event, 'API')">API Settings</button>
-            <button class="tablinks" onclick="openTab(event, 'Prompts')">Prompts</button>
+            <!-- <button class="tablinks" onclick="openTab(event, 'Prompts')">Prompts</button> -->
         </div>
 
         <!-- Research Tab Content -->
@@ -1162,9 +1162,9 @@ Format as a clear checklist for submission.</textarea>
         </div>
 
         <!-- Prompts Tab Content -->
-        <div id="Prompts" class="tabcontent">
+        <!-- <div id="Prompts" class="tabcontent">
             <!-- Existing Prompts tab content -->
-        </div>
+        <!-- </div> --> -->
     </div>
 
     <script>
@@ -1636,8 +1636,8 @@ Research Topic: ${userInput}
 Relevant Web Research for Literature Review:
 ${data.results}
 
-Please incorporate the above web research findings into a comprehensive literature review section.
-Focus on analyzing and synthesizing the existing research, identifying key themes, gaps, and relationships between different studies.
+Please incorporate the above web research findings if shared into a comprehensive literature review section.
+Focus on analyzing and synthesizing the existing research, identifying key themes, gaps, and relationships between different studies. Give results to the best of knowledge regarding the research topic if the web search results are shared dont mention about them not being shared in answer.
 `;
                             tempDiv.remove();
                         } catch (error) {

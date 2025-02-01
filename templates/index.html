@@ -2,6 +2,27 @@
 <html>
 <head>
     <title>Research Paper Assistant</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzdNhDTwzERyGp6xLCNxq5GM8iIOk8HoU",
+            authDomain: "hkare-21691.firebaseapp.com",
+            projectId: "hkare-21691",
+            storageBucket: "hkare-21691.firebasestorage.app",
+            messagingSenderId: "713242747070",
+            appId: "1:713242747070:web:ff3e3a1e45f38518f43eef",
+            measurementId: "G-JT7E86BZ3Q"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        
+        window.auth = auth;
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -53,10 +74,10 @@
         
         /* Tab Styles */
         .tab {
-            overflow: hidden;
-            border: 1px solid #ccc;
-            background-color: #f1f1f1;
-            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
         }
         .tab button {
             background-color: inherit;
@@ -66,14 +87,13 @@
             cursor: pointer;
             padding: 14px 16px;
             transition: 0.3s;
-            font-size: 16px;
+            font-size: 17px;
         }
         .tab button:hover {
             background-color: #ddd;
         }
         .tab button.active {
-            background-color: #4CAF50;
-            color: white;
+            background-color: #ccc;
         }
         .tabcontent {
             display: none;
@@ -750,6 +770,37 @@
             80% { content: '....'; }
             100% { content: '.....'; }
         }
+
+        .user-info {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-right: 15px;
+        }
+
+        #userEmail {
+            color: #333;
+            font-size: 14px;
+        }
+
+        .logout-button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .logout-button:hover {
+            background-color: #d32f2f;
+        }
+
+        /* Style for logout tab specifically */
+        .tab button[onclick="logout()"]:hover {
+            background-color: #d32f2f !important;
+        }
     </style>
 </head>
 <body>
@@ -757,9 +808,9 @@
         <!-- Tab Navigation -->
         <div class="tab">
             <button class="tablinks" onclick="openTab(event, 'Input')">User Input</button>
-            <button class="tablinks" onclick="openTab(event, 'Output')">Backend Promt</button>
+            <button class="tablinks" onclick="openTab(event, 'Output')">Backend Prompt</button>
             <button class="tablinks" onclick="openTab(event, 'API')">Settings</button>
-<!--             <button class="tablinks" onclick="openTab(event, 'Prompts')">Prompts</button> -->
+            <button class="tablinks" onclick="logout()" style="margin-left: auto; background-color: #f44336; color: white;">Logout (<span id="userEmail"></span>)</button>
         </div>
 
         <!-- Research Tab Content -->
@@ -1165,6 +1216,11 @@ Format as a clear checklist for submission.</textarea>
         <div id="Prompts" class="tabcontent">
             <!-- Existing Prompts tab content -->
         </div>
+
+        <!-- Add corresponding tab content div (even though it won't be used) -->
+        <div id="Logout" class="tabcontent">
+            <!-- This can remain empty as logout is handled by the button click -->
+        </div>
     </div>
 
     <script>
@@ -1282,6 +1338,237 @@ Format as a clear checklist for submission.</textarea>
             localStorage.setItem('apiKeys', JSON.stringify(apiKeys));
             alert('API settings saved successfully!');
         }
+
+        // Add authentication check
+        firebase.auth().onAuthStateChanged((user) => {
+            if (!user) {
+                window.location.href = '/';
+            } else {
+                document.getElementById('userEmail').textContent = user.email;
+            }
+        });
+
+        async function logout() {
+            try {
+                await fetch('/logout', { 
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        // Update your API calls to include the auth token
+        async function getAuthToken() {
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                throw new Error('Not authenticated');
+            }
+            return await user.getIdToken();
+        }
+
+        // Modify your existing API calls to include the token
+        async function generateSelectedSections() {
+            try {
+                const selectedCheckboxes = document.querySelectorAll('.section-checkboxes input[type="checkbox"]:checked');
+                if (selectedCheckboxes.length === 0) {
+                    alert('Please select at least one section to generate.');
+                    return;
+                }
+
+                const paperOutput = document.querySelector('.combined-content');
+                const inputMode = document.querySelector('input[name="inputMode"]:checked').value;
+                const collectiveInput = document.getElementById('collectiveInput')?.value?.trim();
+                let allResults = '';
+
+                // Get selected model and API keys
+                const selectedModel = document.getElementById('modelSelection').value;
+                const requestPayload = {
+                    model: selectedModel,
+                };
+
+                // Process each selected section
+                for (const checkbox of selectedCheckboxes) {
+                    const section = checkbox.value;
+                    let userInput;
+                    let enhancedInput;
+                    
+                    if (inputMode === 'combined') {
+                        userInput = collectiveInput;
+                    } else {
+                        userInput = document.getElementById(`${section}-input`)?.value?.trim();
+                    }
+
+                    if (!userInput) {
+                        console.warn(`No input provided for section: ${section}`);
+                        continue;
+                    }
+
+                    // Only perform web search for Literature Review section if enabled
+                    if (section === 'literature' && document.getElementById('enableWebScraping').checked) {
+                        try {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.className = 'loading';
+                            tempDiv.textContent = 'Fetching web search results for Literature Review...';
+                            paperOutput.insertBefore(tempDiv, paperOutput.firstChild);
+
+                            const response = await fetch('/search', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    query: userInput,
+                                    numWebsites: 5,
+                                    contentLimit: 1000,
+                                    model: selectedModel,
+                                    geminiApiKey: document.getElementById('geminiApiKey')?.value,
+                                    chatgptApiKey: document.getElementById('chatgptApiKey')?.value,
+                                    chatgptModel: document.getElementById('chatgptModel')?.value
+                                }),
+                                credentials: 'include'  // Add this for cookie handling
+                            });
+
+                            if (!response.ok) {
+                                if (response.status === 403) {
+                                    window.location.href = '/';
+                                    return;
+                                }
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+
+                            const data = await response.json();
+                            
+                            enhancedInput = `
+Research Topic: ${userInput}
+
+Relevant Web Research for Literature Review:
+${data.results}
+
+Please incorporate the above web research findings into a comprehensive literature review section.
+Focus on analyzing and synthesizing the existing research, identifying key themes, gaps, and relationships between different studies.
+`;
+                            tempDiv.remove();
+                        } catch (error) {
+                            console.error('Web scraping failed:', error);
+                            if (!confirm('Web search failed for Literature Review. Would you like to proceed without web data?')) {
+                                continue;
+                            }
+                            enhancedInput = userInput;
+                        }
+                    } else {
+                        enhancedInput = userInput;
+                    }
+
+                    const promptTemplate = document.getElementById(`${section}Prompt`)?.value;
+                    if (!promptTemplate) {
+                        console.error(`No prompt template found for section: ${section}`);
+                        continue;
+                    }
+
+                    const formattedPrompt = formatPromptWithInput(promptTemplate, enhancedInput);
+
+                    const sectionPayload = {
+                        ...requestPayload,
+                        input: enhancedInput,
+                        prompt: formattedPrompt,
+                        section: section
+                    };
+
+                    // Add API keys based on selected model
+                    if (sectionPayload.model === 'gemini') {
+                        sectionPayload.geminiApiKey = document.getElementById('geminiApiKey').value;
+                    } else {
+                        sectionPayload.chatgptKey = document.getElementById('chatgptApiKey').value;
+                        sectionPayload.chatgptModel = document.getElementById('chatgptModel').value;
+                        delete sectionPayload.safety_settings;
+                    }
+
+                    try {
+                        const response = await fetch('/generate', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(sectionPayload),
+                            credentials: 'include'  // Add this for cookie handling
+                        });
+
+                        if (!response.ok) {
+                            if (response.status === 403) {
+                                window.location.href = '/';
+                                return;
+                            }
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        
+                        if (data.content) {
+                            const sectionInfo = sections.find(s => s.id === section);
+                            allResults += `
+                                <div class="section-result">
+                                    <h2>${sectionInfo ? sectionInfo.title : section}</h2>
+                                    <div class="generated-content">
+                                        ${formatGeminiOutput(data.content)}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        console.error(`Error generating content for ${section}:`, error);
+                        if (error.message.includes('403')) {
+                            window.location.href = '/';
+                            return;
+                        }
+                        allResults += `
+                            <div class="error-message">
+                                Error generating content for ${section}: ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+
+                paperOutput.innerHTML = allResults || '<div class="error-message">No content was generated.</div>';
+
+            } catch (error) {
+                console.error('Generation error:', error);
+                if (error.message.includes('403')) {
+                    window.location.href = '/';
+                    return;
+                }
+                paperOutput.innerHTML = `
+                    <div class="error-message">
+                        Error generating content: ${error.message}
+                        <br>
+                        <small>Check the console for more details.</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Add authentication check on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/verify-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    window.location.href = '/';
+                    return;
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/';
+            }
+        });
     </script>
 
     <!-- Add this script section before your existing scripts -->
@@ -1557,202 +1844,23 @@ Format as a clear checklist for submission.</textarea>
             return promptTemplate.replace(/{input}/g, userInput);
         }
 
-        // Update the generateSelectedSections function
-        async function generateSelectedSections() {
-            try {
-                const selectedModel = document.getElementById('modelSelection').value;
-                let requestPayload = {
-                    model: selectedModel,
-                    safety_settings: [
-                        {"category": "HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-                        {"category": "HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-                        {"category": "DANGEROUS", "threshold": "BLOCK_ONLY_HIGH"},
-                        {"category": "SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-                        {"category": "VIOLENCE", "threshold": "BLOCK_ONLY_HIGH"}
-                    ]
-                };
+        // Simplify handleWebScrapingToggle to just validate input
+        function handleWebScrapingToggle(checkbox) {
+            if (checkbox.checked) {
+                const inputMode = document.querySelector('input[name="inputMode"]:checked').value;
+                let userInput;
+                
+                if (inputMode === 'combined') {
+                    userInput = document.getElementById('collectiveInput')?.value?.trim();
+                } else {
+                    userInput = document.getElementById('literature-input')?.value?.trim();
+                }
 
-                const selectedCheckboxes = document.querySelectorAll('.section-checkboxes input[type="checkbox"]:checked');
-                if (selectedCheckboxes.length === 0) {
-                    alert('Please select at least one section to generate.');
+                if (!userInput) {
+                    alert('Please enter research input before enabling web search.');
+                    checkbox.checked = false;
                     return;
                 }
-
-                const paperOutput = document.querySelector('.combined-content');
-                const inputMode = document.querySelector('input[name="inputMode"]:checked').value;
-                const collectiveInput = document.getElementById('collectiveInput')?.value?.trim();
-                let allResults = '';
-
-                // Process each selected section
-                for (const checkbox of selectedCheckboxes) {
-                    const section = checkbox.value;
-                    let userInput;
-                    let enhancedInput;
-                    
-                    if (inputMode === 'combined') {
-                        userInput = collectiveInput;
-                    } else {
-                        userInput = document.getElementById(`${section}-input`)?.value?.trim();
-                    }
-
-                    if (!userInput) {
-                        console.warn(`No input provided for section: ${section}`);
-                        continue;
-                    }
-
-                    // Only perform web search for Literature Review section if enabled
-                    if (section === 'literature' && document.getElementById('enableWebScraping').checked) {
-                        try {
-                            const tempDiv = document.createElement('div');
-                            tempDiv.className = 'loading';
-                            tempDiv.textContent = 'Fetching web search results for Literature Review...';
-                            paperOutput.insertBefore(tempDiv, paperOutput.firstChild);
-
-                            const response = await fetch('/search', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    query: userInput,
-                                    numWebsites: 5,
-                                    contentLimit: 1000,
-                                    model: selectedModel,
-                                    geminiApiKey: document.getElementById('geminiApiKey')?.value,
-                                    chatgptApiKey: document.getElementById('chatgptApiKey')?.value,
-                                    chatgptModel: document.getElementById('chatgptModel')?.value
-                                })
-                            });
-
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-
-                            const data = await response.json();
-                            
-                            enhancedInput = `
-Research Topic: ${userInput}
-
-Relevant Web Research for Literature Review:
-${data.results}
-
-Please incorporate the above web research findings into a comprehensive literature review section.
-Focus on analyzing and synthesizing the existing research, identifying key themes, gaps, and relationships between different studies.
-`;
-                            tempDiv.remove();
-                        } catch (error) {
-                            console.error('Web scraping failed:', error);
-                            if (!confirm('Web search failed for Literature Review. Would you like to proceed without web data?')) {
-                                continue;
-                            }
-                            enhancedInput = userInput;
-                        }
-                    } else {
-                        enhancedInput = userInput;
-                    }
-
-                    const promptTemplate = document.getElementById(`${section}Prompt`)?.value;
-                    if (!promptTemplate) {
-                        console.error(`No prompt template found for section: ${section}`);
-                        continue;
-                    }
-
-                    const formattedPrompt = formatPromptWithInput(promptTemplate, enhancedInput);
-
-                    const sectionPayload = {
-                        ...requestPayload,
-                        input: enhancedInput,
-                        prompt: formattedPrompt,
-                        section: section
-                    };
-
-                    // Add API keys based on selected model
-                    if (sectionPayload.model === 'gemini') {
-                        sectionPayload.geminiApiKey = document.getElementById('geminiApiKey').value;
-                    } else {
-                        sectionPayload.chatgptKey = document.getElementById('chatgptApiKey').value;
-                        sectionPayload.chatgptModel = document.getElementById('chatgptModel').value;
-                        delete sectionPayload.safety_settings;
-                    }
-
-                    try {
-                        const response = await fetch('/generate', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(sectionPayload)
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-
-                        const data = await response.json();
-                        
-                        if (data.content) {
-                            const sectionInfo = sections.find(s => s.id === section);
-                            allResults += `
-                                <div class="section-result">
-                                    <h2>${sectionInfo ? sectionInfo.title : section}</h2>
-                                    <div class="generated-content">
-                                        ${formatGeminiOutput(data.content)}
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    } catch (error) {
-                        console.error(`Error generating content for ${section}:`, error);
-                        allResults += `
-                            <div class="error-message">
-                                Error generating content for ${section}: ${error.message}
-                            </div>
-                        `;
-                    }
-                }
-
-                paperOutput.innerHTML = allResults || '<div class="error-message">No content was generated.</div>';
-
-            } catch (error) {
-                console.error('Generation error:', error);
-                paperOutput.innerHTML = `
-                    <div class="error-message">
-                        Error generating content: ${error.message}
-                        <br>
-                        <small>Check the console for more details.</small>
-                    </div>
-                `;
-            }
-        }
-
-        // Function to get web search results
-        async function getWebSearchResults(query) {
-            try {
-                const response = await fetch('/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        query: query,
-                        numWebsites: 5, // Limit to 5 websites for faster results
-                        contentLimit: 1000, // Limit content length
-                        model: document.getElementById('modelSelection').value,
-                        geminiApiKey: document.getElementById('geminiApiKey')?.value,
-                        chatgptApiKey: document.getElementById('chatgptApiKey')?.value,
-                        chatgptModel: document.getElementById('chatgptModel')?.value
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                return data.results;
-            } catch (error) {
-                console.error('Error in web search:', error);
-                throw error;
             }
         }
     </script>
@@ -1937,28 +2045,6 @@ Focus on analyzing and synthesizing the existing research, identifying key theme
                 .replace(/\n/g, '<br>')
                 // Wrap in paragraph if not already wrapped
                 .replace(/^(.+)$/, '<p>$1</p>');
-        }
-    </script>
-
-    <script>
-        // Simplify handleWebScrapingToggle to just validate input
-        function handleWebScrapingToggle(checkbox) {
-            if (checkbox.checked) {
-                const inputMode = document.querySelector('input[name="inputMode"]:checked').value;
-                let userInput;
-                
-                if (inputMode === 'combined') {
-                    userInput = document.getElementById('collectiveInput')?.value?.trim();
-                } else {
-                    userInput = document.getElementById('literature-input')?.value?.trim();
-                }
-
-                if (!userInput) {
-                    alert('Please enter research input before enabling web search.');
-                    checkbox.checked = false;
-                    return;
-                }
-            }
         }
     </script>
 </body>

@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request, Form, Body, HTTPException
+from fastapi import FastAPI, Request, Form, Body, HTTPException, Depends, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import google.generativeai as genai
 from serpapi import GoogleSearch
 import requests
@@ -19,6 +20,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
+import firebase_admin
+from firebase_admin import credentials, auth
 
 
 class ApiKeys(BaseModel):
@@ -36,7 +39,12 @@ class GenerateRequest(BaseModel):
     chatgptKey: Optional[str] = None
     chatgptModel: Optional[str] = None
 
+# Initialize Firebase Admin with your service account
+cred = credentials.Certificate("firebase_key.json")  # Make sure this path is correct
+firebase_admin.initialize_app(cred)
+
 app = FastAPI()
+security = HTTPBearer()
 
 # Configure templates and static files
 templates = Jinja2Templates(directory="templates")
@@ -195,20 +203,79 @@ async def generate_with_chatgpt(prompt: str, api_key: str, model_name: str) -> s
     )
     return response.choices[0].message.content if response.choices else ""
 
-@app.post("/generate")
-async def generate_content(request: GenerateRequest):
+# Authentication dependency
+async def verify_token_from_cookie(request: Request):
     try:
-        print(f"Processing request for section: {request.section} with model: {request.model}")
+        token = request.cookies.get("auth_token")
+        if not token:
+            raise HTTPException(status_code=403, detail="Not authenticated")
         
-        if request.model == "gemini":
-            if not request.geminiApiKey:
+        decoded_token = auth.verify_id_token(token)
+        return decoded_token
+    except Exception as e:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    try:
+        await verify_token_from_cookie(request)
+        return RedirectResponse(url='/app')
+    except HTTPException:
+        return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/app", response_class=HTMLResponse)
+async def app_page(request: Request):
+    try:
+        await verify_token_from_cookie(request)
+        return templates.TemplateResponse("index.html", {"request": request})
+    except HTTPException:
+        return RedirectResponse(url='/')
+
+@app.post("/verify-token")
+async def verify_firebase_token(data: dict = Body(...)):
+    try:
+        token = data.get("token")
+        if not token:
+            raise HTTPException(status_code=400, detail="No token provided")
+        
+        decoded_token = auth.verify_id_token(token)
+        
+        # Create a JSON response with the cookie
+        response = JSONResponse(content={"status": "success", "uid": decoded_token["uid"]})
+        
+        # Set the cookie in the response
+        response.set_cookie(
+            key="auth_token",
+            value=token,
+            httponly=True,
+            secure=False,  # Set to True in production with HTTPS
+            samesite='lax',
+            max_age=3600  # 1 hour
+        )
+        
+        return response
+        
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@app.post("/generate")
+async def generate_content(
+    request: Request,
+    data: dict = Body(...),
+):
+    await verify_token_from_cookie(request)
+    try:
+        print(f"Processing request for section: {data['section']} with model: {data['model']}")
+        
+        if data['model'] == "gemini":
+            if not data['geminiApiKey']:
                 raise HTTPException(status_code=400, detail="Gemini API key is required")
-            content = await generate_with_gemini(request.prompt, request.geminiApiKey)
+            content = await generate_with_gemini(data['prompt'], data['geminiApiKey'])
         
-        elif request.model == "chatgpt":
-            if not request.chatgptKey or not request.chatgptModel:
+        elif data['model'] == "chatgpt":
+            if not data['chatgptKey'] or not data['chatgptModel']:
                 raise HTTPException(status_code=400, detail="ChatGPT API key and model are required")
-            content = await generate_with_chatgpt(request.prompt, request.chatgptKey, request.chatgptModel)
+            content = await generate_with_chatgpt(data['prompt'], data['chatgptKey'], data['chatgptModel'])
         
         else:
             raise HTTPException(status_code=400, detail="Invalid model selection")
@@ -217,7 +284,7 @@ async def generate_content(request: GenerateRequest):
             return {
                 "status": "success",
                 "content": content,
-                "section": request.section
+                "section": data['section']
             }
         else:
             raise HTTPException(status_code=500, detail="Empty response from AI model")
@@ -226,49 +293,12 @@ async def generate_content(request: GenerateRequest):
         print(f"Error in generate_content: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    try:
-        return templates.TemplateResponse("index.html", {"request": request})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/test-api-keys")
-async def test_api_keys(api_keys: ApiKeys):
-    results = {
-        "geminiApi": False,
-        "chatgptApi": False
-    }
-    
-    # Test Gemini API if provided
-    if api_keys.geminiApiKey:
-        try:
-            genai.configure(api_key=api_keys.geminiApiKey)
-            model = genai.GenerativeModel('gemini-pro')
-            model.generate_content("test")
-            results["geminiApi"] = True
-        except Exception as e:
-            print(f"Gemini API test failed: {e}")
-    
-    # Test ChatGPT API if provided
-    if api_keys.chatgptApiKey:
-        try:
-            openai.api_key = api_keys.chatgptApiKey
-            openai.ChatCompletion.create(
-                model=api_keys.chatgptModel or "gpt-3.5-turbo",
-                messages=[{"role": "user", "content": "test"}]
-            )
-            results["chatgptApi"] = True
-        except Exception as e:
-            print(f"ChatGPT API test failed: {e}")
-    
-    return results
-
 @app.post("/search")
 async def search_research(
     request: Request,
-    data: dict = Body(...)
+    data: dict = Body(...),
 ):
+    await verify_token_from_cookie(request)
     try:
         # Extract data from request body
         query = data.get('query')
@@ -348,4 +378,11 @@ async def search_research(
 # Add a health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"} 
+    return {"status": "healthy"}
+
+# Add logout endpoint
+@app.post("/logout")
+async def logout():
+    response = JSONResponse(content={"status": "success"})
+    response.delete_cookie("auth_token")
+    return response 

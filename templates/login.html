@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Research Paper Assistant</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            signInWithPopup,
+            GoogleAuthProvider,
+            sendPasswordResetEmail 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzdNhDTwzERyGp6xLCNxq5GM8iIOk8HoU",
+            authDomain: "hkare-21691.firebaseapp.com",
+            projectId: "hkare-21691",
+            storageBucket: "hkare-21691.firebasestorage.app",
+            messagingSenderId: "713242747070",
+            appId: "1:713242747070:web:ff3e3a1e45f38518f43eef",
+            measurementId: "G-JT7E86BZ3Q"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // Make auth functions available globally
+        window.auth = auth;
+        window.provider = provider;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithPopup = signInWithPopup;
+        window.sendPasswordResetEmail = sendPasswordResetEmail;
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .login-title {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .login-button, .signup-button, .google-button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .login-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .signup-button {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .google-button {
+            background-color: #fff;
+            color: #757575;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .google-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+        }
+        
+        .error-message {
+            color: #f44336;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .divider {
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background-color: #ddd;
+        }
+        
+        .divider::before {
+            left: 0;
+        }
+        
+        .divider::after {
+            right: 0;
+        }
+
+        .auth-container {
+            display: none;  /* Hide both containers by default */
+        }
+
+        .auth-container.active {
+            display: block;  /* Show active container */
+        }
+
+        .auth-toggle {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .auth-toggle button {
+            background: none;
+            border: none;
+            color: #2196F3;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 5px;
+        }
+
+        .auth-toggle button:hover {
+            color: #1976D2;
+        }
+
+        .form-title {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+
+        .forgot-password button {
+            background: none;
+            border: none;
+            color: #2196F3;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 5px;
+            font-size: 14px;
+        }
+
+        .forgot-password button:hover {
+            color: #1976D2;
+        }
+
+        .success-message {
+            color: #4CAF50;
+            margin-top: 10px;
+            display: none;
+            text-align: center;
+            padding: 10px;
+            background-color: #E8F5E9;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1 class="login-title">Research Paper Assistant</h1>
+        
+        <!-- Login Form -->
+        <div id="loginContainer" class="auth-container active">
+            <div class="form-title">Login</div>
+            <form id="loginForm" onsubmit="handleEmailLogin(event)">
+                <input type="email" id="loginEmail" placeholder="Email" class="input-field" required>
+                <input type="password" id="loginPassword" placeholder="Password" class="input-field" required>
+                <div class="forgot-password">
+                    <button type="button" onclick="toggleAuth('reset')">Forgot Password?</button>
+                </div>
+                <button type="submit" class="login-button">Login</button>
+            </form>
+            <div class="auth-toggle">
+                <button onclick="toggleAuth('signup')">Don't have an account? Sign up</button>
+            </div>
+        </div>
+        
+        <!-- Signup Form -->
+        <div id="signupContainer" class="auth-container">
+            <div class="form-title">Create Account</div>
+            <form id="signupForm" onsubmit="handleSignup(event)">
+                <input type="email" id="signupEmail" placeholder="Email" class="input-field" required>
+                <input type="password" id="signupPassword" placeholder="Password" class="input-field" required>
+                <button type="submit" class="signup-button">Sign Up</button>
+            </form>
+            <div class="auth-toggle">
+                <button onclick="toggleAuth('login')">Already have an account? Login</button>
+            </div>
+        </div>
+
+        <!-- Password Reset Form -->
+        <div id="resetContainer" class="auth-container">
+            <div class="form-title">Reset Password</div>
+            <form id="resetForm" onsubmit="handlePasswordReset(event)">
+                <input type="email" id="resetEmail" placeholder="Email" class="input-field" required>
+                <button type="submit" class="login-button">Send Reset Link</button>
+            </form>
+            <div class="auth-toggle">
+                <button onclick="toggleAuth('login')">Back to Login</button>
+            </div>
+        </div>
+        
+        <div class="divider">OR</div>
+        
+        <!-- Google Sign In -->
+        <button onclick="handleGoogleSignIn()" class="google-button">
+            <img src="https://www.google.com/favicon.ico" alt="Google" class="google-icon">
+            Sign in with Google
+        </button>
+        
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+    </div>
+
+    <script>
+        function toggleAuth(mode) {
+            // Hide all containers
+            document.querySelectorAll('.auth-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            
+            // Show selected container
+            if (mode === 'login') {
+                document.getElementById('loginContainer').classList.add('active');
+            } else if (mode === 'signup') {
+                document.getElementById('signupContainer').classList.add('active');
+            } else if (mode === 'reset') {
+                document.getElementById('resetContainer').classList.add('active');
+            }
+            
+            // Clear messages
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        async function handlePasswordReset(event) {
+            event.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            
+            try {
+                await window.sendPasswordResetEmail(window.auth, email);
+                const successMsg = document.getElementById('success-message');
+                successMsg.textContent = 'Password reset email sent! Please check your inbox.';
+                successMsg.style.display = 'block';
+                
+                document.getElementById('resetForm').reset();
+                
+                setTimeout(() => {
+                    toggleAuth('login');
+                }, 3000);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this email address.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many password reset attempts. Please try again later.';
+                        break;
+                    default:
+                        errorMessage = 'Password reset failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function handleEmailLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                const idToken = await userCredential.user.getIdToken();
+                await verifyTokenWithBackend(idToken);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/invalid-credential':
+                    case 'auth/wrong-password':
+                        errorMessage = 'Invalid email or password. Please try again.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this email. Please sign up first.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'This account has been disabled. Please contact support.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many failed login attempts. Please try again later.';
+                        break;
+                    default:
+                        errorMessage = 'Login failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            try {
+                const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+                const idToken = await userCredential.user.getIdToken();
+                await verifyTokenWithBackend(idToken);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'An account with this email already exists. Please login instead.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Password is too weak. Please use at least 6 characters.';
+                        break;
+                    default:
+                        errorMessage = 'Sign up failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function handleGoogleSignIn() {
+            try {
+                const result = await window.signInWithPopup(window.auth, window.provider);
+                const idToken = await result.user.getIdToken();
+                await verifyTokenWithBackend(idToken);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/popup-blocked':
+                        errorMessage = 'Pop-up was blocked by your browser. Please allow pop-ups for this site.';
+                        break;
+                    case 'auth/popup-closed-by-user':
+                        errorMessage = 'Sign in was cancelled. Please try again.';
+                        break;
+                    case 'auth/unauthorized-domain':
+                        errorMessage = 'This domain is not authorized for Google sign-in. Please contact support.';
+                        break;
+                    case 'auth/cancelled-popup-request':
+                        errorMessage = 'Only one pop-up window is allowed at a time.';
+                        break;
+                    default:
+                        errorMessage = 'Google sign in failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function verifyTokenWithBackend(idToken) {
+            try {
+                const response = await fetch('/verify-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: idToken }),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Backend verification failed');
+                }
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.href = '/app';
+                } else {
+                    throw new Error('Token verification failed');
+                }
+            } catch (error) {
+                showError('Token verification failed: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        // Check if user is already signed in
+        window.auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    const token = await user.getIdToken();
+                    await verifyTokenWithBackend(token);
+                } catch (error) {
+                    console.error('Auto-login failed:', error);
+                    showError('Auto-login failed: ' + error.message);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

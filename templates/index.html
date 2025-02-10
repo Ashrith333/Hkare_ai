@@ -4,8 +4,15 @@
     <title>Research Paper Assistant</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { 
+            getAuth, 
+            EmailAuthProvider, 
+            reauthenticateWithCredential,
+            updatePassword 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { getDatabase, ref, get, set, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAzdNhDTwzERyGp6xLCNxq5GM8iIOk8HoU",
@@ -14,14 +21,35 @@
             storageBucket: "hkare-21691.firebasestorage.app",
             messagingSenderId: "713242747070",
             appId: "1:713242747070:web:ff3e3a1e45f38518f43eef",
-            measurementId: "G-JT7E86BZ3Q"
+            measurementId: "G-JT7E86BZ3Q",
+            databaseURL: "https://hkare-21691-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
         const auth = getAuth(app);
-        
+        const database = getDatabase(app);
+
+        // Make Firebase objects globally accessible
         window.auth = auth;
+        window.database = database;
+        window.dbRef = ref;
+        window.dbGet = get;
+        window.dbSet = set;
+        window.dbChild = child;
+        window.EmailAuthProvider = EmailAuthProvider;
+        window.reauthenticateWithCredential = reauthenticateWithCredential;
+        window.updatePassword = updatePassword;
+
+        // Initialize profile when auth state changes
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('Auth state changed - user logged in:', user.email);
+                loadUserProfile().catch(error => {
+                    console.error('Failed to load profile on auth state change:', error);
+                });
+            }
+        });
     </script>
     <style>
         body {
@@ -1338,6 +1366,137 @@
         .tablinks.active:hover {
             background-color: #45a049;  /* Slightly darker green */
         }
+
+        .profile-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .profile-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .password-reset-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .profile-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .profile-input:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+        }
+
+        .save-profile-btn, .reset-password-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .save-profile-btn:hover, .reset-password-btn:hover {
+            background-color: #45a049;
+        }
+
+        .reset-password-btn {
+            background-color: #2196F3;
+        }
+
+        .reset-password-btn:hover {
+            background-color: #1976D2;
+        }
+
+        .profile-input[readonly] {
+            background-color: #f5f5f5;
+            color: #666;
+            cursor: not-allowed;
+            border: 1px solid #ddd;
+        }
+
+        .profile-input[readonly]:focus {
+            box-shadow: none;
+            border-color: #ddd;
+        }
+
+        /* Add these styles to your existing style section */
+        .profile-info-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-item label {
+            font-weight: 500;
+            color: #495057;
+            width: auto;
+        }
+
+        .info-item span {
+            color: #6c757d;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        /* Update readonly input styles */
+        .profile-input[readonly] {
+            background-color: #f5f5f5 !important;
+            color: #666 !important;
+            cursor: not-allowed !important;
+            border: 1px solid #ddd !important;
+            user-select: none;
+        }
+
+        .profile-input[readonly]:focus {
+            box-shadow: none !important;
+            border-color: #ddd !important;
+        }
     </style>
     <!-- Add Font Awesome in the head section if not already present -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -1357,11 +1516,12 @@
                 <button class="tablinks" onclick="openTab(event, 'History')">Generated Papers</button>
                 <button class="tablinks" onclick="openTab(event, 'Output')">Backend Prompt</button>
                 <button class="tablinks" onclick="openTab(event, 'API')">Settings</button>
+                <button class="tablinks" onclick="openTab(event, 'Profile')">Profile</button>
             
             <div class="action-buttons">
                 <button id="generateButton" class="generate-btn" style="background-color: #4CAF50; color: white;">Generate Paper</button>
                 <button onclick="downloadAsPDF()" id="downloadBtn" class="generate-btn" style="background-color: #2196F3; color: white; display: none;">Download PDF</button>
-                <button class="tablinks" onclick="logout()" style="background-color: #f44336; color: white;">Logout (<span id="userEmail"></span>)</button>
+                <button class="tablinks" onclick="logout()" style="background-color: #f44336; color: white;">Logout (<span id="headerEmail"></span>)</button>
             </div>
         </div>
         </div>
@@ -1378,17 +1538,17 @@
                     <label>
                         <input type="radio" name="inputMode" value="combined" checked> Combined Input
                     </label>
-                    <label>
+                    <!-- <label>
                         <input type="radio" name="inputMode" value="individual"> Individual Inputs
-                    </label>
+                    </label> -->
                 </div>
-
+<!-- 
                 <div class="web-scraping-control">
                     <label>
                         <input type="checkbox" id="enableWebScraping" onchange="handleWebScrapingToggle(this)"> Enable Web Scraping
                     </label>
                 </div>
-                
+                 -->
                 <!-- Combined input area -->
                 <div id="combinedInputArea" class="combined-input">
                     <textarea id="collectiveInput" placeholder="Enter your research details here..."></textarea>
@@ -1806,6 +1966,60 @@ Format as a clear checklist for submission.</textarea>
                 </div>
             </div>
         </div>
+
+        <!-- Profile Tab Content -->
+        <div id="Profile" class="tabcontent">
+            <div class="profile-container">
+                <h2>User Profile</h2>
+                <div class="profile-form">
+                    <div class="form-group">
+                        <label for="userName">Full Name:</label>
+                        <input type="text" id="userName" class="profile-input" placeholder="Enter your full name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="userCollege">College/Institution:</label>
+                        <input type="text" id="userCollege" class="profile-input" placeholder="Enter your college/institution">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="profileEmail">Email:</label>
+                        <input type="email" 
+                               id="profileEmail" 
+                               class="profile-input" 
+                               readonly 
+                               style="background-color: #f5f5f5; color: #666; cursor: not-allowed;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="userPhone">Phone Number:</label>
+                        <input type="tel" id="userPhone" class="profile-input" placeholder="Enter your phone number">
+                    </div>
+                    
+                    <button onclick="saveProfile()" class="save-profile-btn">Save Profile</button>
+                </div>
+
+                <div class="password-reset-section">
+                    <h3>Reset Password</h3>
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password:</label>
+                        <input type="password" id="currentPassword" class="profile-input" placeholder="Enter current password">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" class="profile-input" placeholder="Enter new password">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password:</label>
+                        <input type="password" id="confirmPassword" class="profile-input" placeholder="Confirm new password">
+                    </div>
+                    
+                    <button onclick="resetPassword()" class="reset-password-btn">Reset Password</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1823,14 +2037,12 @@ Format as a clear checklist for submission.</textarea>
             document.getElementById(tabName).style.display = "block";
             if (evt) evt.currentTarget.className += " active";
             
-            // Load history when switching to History tab
+            // Load appropriate data when switching tabs
             if (tabName === 'History') {
-                console.log("Loading history from tab switch");
                 loadHistory();
-            }
-            
-            // If opening API tab, initialize the settings
-            if (tabName === 'API') {
+            } else if (tabName === 'Profile') {
+                loadUserProfile();
+            } else if (tabName === 'API') {
                 updateVisibleSettings();
             }
         }
@@ -2020,6 +2232,7 @@ Format as a clear checklist for submission.</textarea>
                 const requestPayload = {
                     model: selectedModel,
                     input: collectiveInput,
+                    prompts: {} // Add this to store all prompts
                 };
 
                 // Process each selected section
@@ -2044,6 +2257,9 @@ Format as a clear checklist for submission.</textarea>
 
                         const formattedPrompt = formatPromptWithInput(promptTemplate, enhancedInput);
                         console.log(`Formatted prompt for ${section}:`, formattedPrompt);
+
+                        // Store the prompt in the payload
+                        requestPayload.prompts[section] = formattedPrompt;
 
                         const sectionPayload = {
                             ...requestPayload,
@@ -2072,7 +2288,10 @@ Format as a clear checklist for submission.</textarea>
                                 headers: {
                                     'Content-Type': 'application/json',
                                 },
-                                body: JSON.stringify(sectionPayload),
+                                body: JSON.stringify({
+                                    ...sectionPayload,
+                                    allPrompts: requestPayload.prompts // Send all prompts with each request
+                                }),
                                 credentials: 'include'
                             });
 
@@ -2546,18 +2765,18 @@ Format as a clear checklist for submission.</textarea>
     <script>
         // Define sections with their default selection state
         const sections = [
-            { id: 'objective', title: 'Research Objective', defaultSelected: false },
-            { id: 'design', title: 'Study Design', defaultSelected: false },
+            // { id: 'objective', title: 'Research Objective', defaultSelected: false },
+            // { id: 'design', title: 'Study Design', defaultSelected: false },
             { id: 'introduction', title: 'Introduction', defaultSelected: true },
             { id: 'literature', title: 'Literature Review', defaultSelected: true },
-            { id: 'methods', title: 'Methods', defaultSelected: false },
-            { id: 'results', title: 'Results', defaultSelected: false },
-            { id: 'analysis', title: 'Analysis', defaultSelected: false },
-            { id: 'interpretation', title: 'Interpretation', defaultSelected: false },
-            { id: 'discussion', title: 'Discussion', defaultSelected: false },
-            { id: 'conclusion', title: 'Conclusion', defaultSelected: false },
+            // { id: 'methods', title: 'Methods', defaultSelected: false },
+            // { id: 'results', title: 'Results', defaultSelected: false },
+            // { id: 'analysis', title: 'Analysis', defaultSelected: false },
+            // { id: 'interpretation', title: 'Interpretation', defaultSelected: false },
+            // { id: 'discussion', title: 'Discussion', defaultSelected: false },
+            // { id: 'conclusion', title: 'Conclusion', defaultSelected: false },
             { id: 'references', title: 'References', defaultSelected: true },
-            { id: 'submission', title: 'Submission Guidelines', defaultSelected: false }
+            // { id: 'submission', title: 'Submission Guidelines', defaultSelected: false }
         ];
 
         // Function to populate section checkboxes
@@ -3100,6 +3319,244 @@ Format as a clear checklist for submission.</textarea>
                 alert('Failed to delete entry. Please try again.');
             }
         }
+    </script>
+
+    <script>
+        // Function to load user profile
+        async function loadUserProfile() {
+            try {
+                const user = window.auth.currentUser;
+                if (!user) {
+                    console.log('No user logged in');
+                    return;
+                }
+
+                console.log('Loading profile for user:', user.email);
+                
+                // Set email in both profile and header
+                const profileEmail = document.getElementById('profileEmail');
+                const headerEmailSpan = document.getElementById('headerEmail');
+                
+                // Set email values
+                if (profileEmail) {
+                    profileEmail.value = user.email;
+                    profileEmail.style.backgroundColor = '#f5f5f5';
+                    profileEmail.style.color = '#666';
+                    profileEmail.style.cursor = 'not-allowed';
+                }
+                
+                if (headerEmailSpan) {
+                    headerEmailSpan.textContent = user.email;
+                }
+
+                try {
+                    const dbRef = window.dbRef(window.database);
+                    const userRef = window.dbChild(dbRef, `users/${user.uid}`);
+                    console.log('Attempting to fetch data for path:', `users/${user.uid}`);
+                    
+                    const snapshot = await window.dbGet(userRef);
+                    console.log('Snapshot received:', snapshot);
+
+                    if (snapshot.exists()) {
+                        const profileData = snapshot.val();
+                        console.log('Retrieved profile data:', profileData);
+
+                        // Display all available fields
+                        Object.keys(profileData).forEach(key => {
+                            const input = document.getElementById(`user${key.charAt(0).toUpperCase() + key.slice(1)}`);
+                            if (input && key !== 'uid' && key !== 'createdAt' && key !== 'updatedAt') {
+                                input.value = profileData[key] || '';
+                            }
+                        });
+
+                        // Show additional info in a read-only section
+                        const profileForm = document.querySelector('.profile-form');
+                        const infoSection = document.createElement('div');
+                        infoSection.className = 'profile-info-section';
+                        infoSection.innerHTML = `
+                            <div class="info-item">
+                                <label>Account Created:</label>
+                                <span>${new Date(profileData.createdAt).toLocaleString()}</span>
+                            </div>
+                            ${profileData.updatedAt ? `
+                                <div class="info-item">
+                                    <label>Last Updated:</label>
+                                    <span>${new Date(profileData.updatedAt).toLocaleString()}</span>
+                                </div>
+                            ` : ''}
+                            <div class="info-item">
+                                <label>User ID:</label>
+                                <span>${profileData.uid}</span>
+                            </div>
+                        `;
+                        
+                        // Remove existing info section if it exists
+                        const existingInfo = profileForm.querySelector('.profile-info-section');
+                        if (existingInfo) {
+                            existingInfo.remove();
+                        }
+                        
+                        // Add the new info section before the save button
+                        const saveButton = profileForm.querySelector('.save-profile-btn');
+                        profileForm.insertBefore(infoSection, saveButton);
+
+                    } else {
+                        console.log('Creating new profile for user');
+                        const initialProfile = {
+                            name: '',
+                            college: '',
+                            phone: '',
+                            email: user.email,
+                            uid: user.uid,
+                            createdAt: new Date().toISOString()
+                        };
+                        await window.dbSet(userRef, initialProfile);
+                        console.log('Initial profile created');
+                    }
+                } catch (dbError) {
+                    console.error('Database error details:', dbError);
+                    throw new Error(`Database error: ${dbError.message}`);
+                }
+            } catch (error) {
+                console.error('Profile loading error:', error);
+                throw error;
+            }
+        }
+
+        // Function to save user profile
+        async function saveProfile() {
+            try {
+                const user = window.auth.currentUser;
+                if (!user) {
+                    throw new Error('No user logged in');
+                }
+
+                console.log('Current user UID:', user.uid);
+                console.log('Current user email:', user.email);
+
+                const profileData = {
+                    name: document.getElementById('userName').value.trim(),
+                    college: document.getElementById('userCollege').value.trim(),
+                    phone: document.getElementById('userPhone').value.trim(),
+                    email: user.email,
+                    updatedAt: new Date().toISOString(),
+                    uid: user.uid  // Add this line
+                };
+
+                console.log('Profile data to save:', profileData);
+
+                if (!profileData.name) {
+                    throw new Error('Please enter your name');
+                }
+
+                const saveButton = document.querySelector('.save-profile-btn');
+                saveButton.textContent = 'Saving...';
+                saveButton.disabled = true;
+
+                try {
+                    // Verify authentication state
+                    const token = await user.getIdToken();
+                    console.log('User is authenticated:', !!token);
+
+                    // Create a direct reference to the user's profile
+                    const userRef = window.dbRef(window.database, 'users/' + user.uid);
+                    console.log('Database path:', 'users/' + user.uid);
+
+                    // Attempt to save
+                    await window.dbSet(userRef, profileData);
+                    console.log('Profile saved successfully');
+                    alert('Profile updated successfully!');
+                } catch (dbError) {
+                    console.error('Database error:', {
+                        code: dbError.code,
+                        message: dbError.message,
+                        stack: dbError.stack,
+                        path: 'users/' + user.uid
+                    });
+                    throw new Error(`Database error: ${dbError.message}`);
+                } finally {
+                    saveButton.textContent = 'Save Profile';
+                    saveButton.disabled = false;
+                }
+            } catch (error) {
+                console.error('Save profile error:', error);
+                alert('Failed to save profile: ' + error.message);
+            }
+        }
+
+        // Function to reset password
+        async function resetPassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match!');
+                return;
+            }
+
+            try {
+                const user = window.auth.currentUser;
+                if (!user) {
+                    throw new Error('No user logged in');
+                }
+
+                // Show loading state
+                const resetButton = document.querySelector('.reset-password-btn');
+                resetButton.textContent = 'Resetting...';
+                resetButton.disabled = true;
+
+                try {
+                    // Create credential with the correct provider
+                    const credential = window.EmailAuthProvider.credential(
+                        user.email,
+                        currentPassword
+                    );
+
+                    try {
+                        // First try to reauthenticate using the correct method
+                        await window.reauthenticateWithCredential(user, credential);
+                        console.log('Reauthentication successful');
+
+                        // Then update password using the correct method
+                        await window.updatePassword(user, newPassword);
+                        console.log('Password update successful');
+                        
+                        // Clear password fields
+                        document.getElementById('currentPassword').value = '';
+                        document.getElementById('newPassword').value = '';
+                        document.getElementById('confirmPassword').value = '';
+                        
+                        alert('Password updated successfully!');
+                    } catch (authError) {
+                        console.error('Authentication error:', authError);
+                        if (authError.code === 'auth/invalid-credential') {
+                            throw new Error('Current password is incorrect');
+                        } else if (authError.code === 'auth/weak-password') {
+                            throw new Error('New password is too weak. It should be at least 6 characters');
+                        } else if (authError.code === 'auth/requires-recent-login') {
+                            throw new Error('Please log out and log back in before changing your password');
+                        } else {
+                            throw authError;
+                        }
+                    }
+                } finally {
+                    resetButton.textContent = 'Reset Password';
+                    resetButton.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                alert('Failed to reset password: ' + error.message);
+            }
+        }
+
+        // Load profile when opening the Profile tab
+        document.addEventListener('DOMContentLoaded', function() {
+            const profileTab = document.querySelector('button[onclick="openTab(event, \'Profile\')"]');
+            if (profileTab) {
+                profileTab.addEventListener('click', loadUserProfile);
+            }
+        });
     </script>
 </body>
 </html> 

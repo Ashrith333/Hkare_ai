@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Research Paper Assistant</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            signInWithPopup,
+            GoogleAuthProvider,
+            sendPasswordResetEmail 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzdNhDTwzERyGp6xLCNxq5GM8iIOk8HoU",
+            authDomain: "hkare-21691.firebaseapp.com",
+            projectId: "hkare-21691",
+            storageBucket: "hkare-21691.firebasestorage.app",
+            messagingSenderId: "713242747070",
+            appId: "1:713242747070:web:ff3e3a1e45f38518f43eef",
+            measurementId: "G-JT7E86BZ3Q"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // Make auth functions available globally
+        window.auth = auth;
+        window.provider = provider;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithPopup = signInWithPopup;
+        window.sendPasswordResetEmail = sendPasswordResetEmail;
+    </script>
+    <style>
+        /* Add viewport meta tag in head section */
+        @viewport {
+            width: device-width;
+            initial-scale: 1;
+        }
+
+        /* Update existing body styles */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #004d40 0%, #4CAF50 100%);
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* DNA Animation Container */
+        .dna-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: linear-gradient(135deg, #004d40 0%, #00695c 100%);
+            overflow: hidden;
+        }
+
+        /* DNA Helix Animation */
+        .dna-helix {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 600px;
+            opacity: 0.2;
+            z-index: 0;
+        }
+
+        .dna-strand {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.2) 25%,
+                rgba(255, 255, 255, 0.2) 75%,
+                transparent 100%
+            );
+            animation: rotate 20s linear infinite;
+        }
+
+        /* Create multiple DNA strands */
+        @for $i from 1 through 20 {
+            .dna-strand:nth-child(#{$i}) {
+                top: #{$i * 5}%;
+                animation-delay: #{$i * 0.2}s;
+            }
+        }
+
+        /* Medical Icons */
+        .medical-icons {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Cpath d='M25 0v50M0 25h50' stroke='rgba(255,255,255,0.1)' stroke-width='2'/%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='25' fill='none' stroke='rgba(255,255,255,0.1)' stroke-width='2'/%3E%3Cpath d='M30 15v30M15 30h30' stroke='rgba(255,255,255,0.1)' stroke-width='2'/%3E%3C/svg%3E");
+            background-size: 50px 50px, 60px 60px;
+            opacity: 0.1;
+            animation: floatIcons 30s linear infinite;
+        }
+
+        /* Research Elements */
+        .research-elements {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M20 5v30M10 25l10 10l10-10' stroke='rgba(255,255,255,0.1)' stroke-width='2' fill='none'/%3E%3C/svg%3E"),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30'%3E%3Ccircle cx='15' cy='15' r='10' fill='rgba(255,255,255,0.1)'/%3E%3C/svg%3E");
+            background-size: 40px 40px, 30px 30px;
+            opacity: 0.15;
+            animation: floatResearch 25s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: scaleX(1); }
+            50% { transform: scaleX(0.5); }
+        }
+
+        @keyframes floatIcons {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+
+        @keyframes floatResearch {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 40px; }
+        }
+
+        /* Floating Particles */
+        .particles {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Update login container for better mobile display */
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: min(40px, 6vw);
+            border-radius: min(20px, 4vw);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: min(400px, 90%);
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            margin: auto;
+        }
+        
+        /* Adjust title size for mobile */
+        .login-title {
+            color: #004d40;
+            margin-bottom: min(30px, 5vh);
+            font-size: clamp(20px, 4vw, 24px);
+            text-shadow: 0 0 10px rgba(0, 150, 136, 0.2);
+        }
+        
+        /* Make form elements more touch-friendly */
+        .input-field {
+            width: 100%;
+            padding: min(12px, 3vw);
+            margin: min(10px, 2vh) 0;
+            border: 1px solid rgba(0, 150, 136, 0.3);
+            border-radius: min(8px, 2vw);
+            background: rgba(255, 255, 255, 0.9);
+            color: #004d40;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+            font-size: clamp(14px, 3vw, 16px);
+            min-height: 44px; /* Minimum touch target size */
+        }
+        
+        .input-field::placeholder {
+            color: rgba(0, 77, 64, 0.6);
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #00897b;
+            box-shadow: 0 0 15px rgba(0, 150, 136, 0.2);
+            background: #ffffff;
+        }
+        
+        /* Adjust button sizes for better touch targets */
+        .login-button, .signup-button, .google-button {
+            width: 100%;
+            padding: min(12px, 3vw);
+            margin: min(10px, 2vh) 0;
+            border-radius: min(8px, 2vw);
+            font-size: clamp(14px, 3vw, 16px);
+            min-height: 44px;
+        }
+        
+        .login-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .login-button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .signup-button {
+            background: linear-gradient(135deg, #00897b 0%, #004d40 100%);
+            color: white;
+        }
+        
+        .google-button {
+            background-color: #ffffff;
+            color: #004d40;
+            border: 1px solid rgba(0, 150, 136, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .google-button:hover {
+            background-color: rgba(0, 150, 136, 0.1);
+            border-color: #00897b;
+        }
+        
+        .google-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+        }
+        
+        .error-message {
+            background: rgba(244, 67, 54, 0.1);
+            color: #d32f2f;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .divider {
+            color: rgba(0, 77, 64, 0.6);
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background-color: rgba(0, 150, 136, 0.2);
+        }
+        
+        .divider::before {
+            left: 0;
+        }
+        
+        .divider::after {
+            right: 0;
+        }
+
+        .auth-container {
+            display: none;  /* Hide both containers by default */
+        }
+
+        .auth-container.active {
+            display: block;  /* Show active container */
+        }
+
+        .auth-toggle {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* Make links and buttons more touch-friendly */
+        .auth-toggle button, .forgot-password button {
+            padding: min(10px, 2vw);
+            margin: min(5px, 1vh);
+            font-size: clamp(12px, 2.5vw, 14px);
+            min-height: 44px;
+            width: auto;
+            display: inline-block;
+        }
+
+        .auth-toggle button:hover {
+            color: #004d40;
+            text-shadow: 0 0 10px rgba(0, 150, 136, 0.2);
+        }
+
+        .form-title {
+            margin-bottom: 20px;
+            color: #004d40;
+            font-size: 1.5em;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+
+        .forgot-password button:hover {
+            color: #004d40;
+            text-shadow: 0 0 10px rgba(0, 150, 136, 0.2);
+        }
+
+        .success-message {
+            background: rgba(76, 175, 80, 0.1);
+            color: #2e7d32;
+            margin-top: 10px;
+            display: none;
+            text-align: center;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        /* Adjust DNA animation for mobile */
+        @media (max-width: 768px) {
+            .dna-helix {
+                width: 150px;
+            }
+
+            .medical-icons, .research-elements {
+                background-size: 30px 30px, 40px 40px;
+            }
+
+            .particle {
+                width: 4px;
+                height: 4px;
+            }
+        }
+
+        /* Improve form layout on small screens */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 20px;
+            }
+
+            .form-title {
+                font-size: clamp(18px, 4vw, 20px);
+            }
+
+            .divider {
+                margin: 15px 0;
+            }
+
+            .forgot-password {
+                text-align: center;
+                margin: 10px 0;
+            }
+
+            .auth-toggle {
+                margin-top: 15px;
+            }
+        }
+
+        /* Adjust for landscape orientation on mobile */
+        @media (max-height: 600px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+            }
+
+            .login-container {
+                padding: 15px;
+            }
+
+            .login-title {
+                margin-bottom: 15px;
+            }
+
+            .input-field, .login-button, .signup-button, .google-button {
+                margin: 5px 0;
+            }
+        }
+
+        /* Prevent zoom on input focus for iOS */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+            .input-field {
+                font-size: 16px;
+            }
+        }
+
+        /* Add smooth scrolling for mobile */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Improve touch feedback */
+        @media (hover: none) {
+            .login-button:active, .signup-button:active, .google-button:active {
+                transform: scale(0.98);
+            }
+
+            .auth-toggle button:active, .forgot-password button:active {
+                opacity: 0.7;
+            }
+        }
+
+        /* Add floating microscope icon */
+        .microscope-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='rgba(255,255,255,0.2)' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'/%3E%3C/svg%3E");
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        /* Add floating molecules */
+        .molecule {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        .molecule::before,
+        .molecule::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .molecule::before {
+            transform: translate(-50%, -50%);
+        }
+
+        .molecule::after {
+            transform: translate(50%, 50%);
+        }
+
+        /* Add background patterns */
+        .background-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        /* Add floating circles animation */
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(100px, -100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Add circles to background */
+        .circles {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 20s infinite linear;
+        }
+
+        /* Medical icons and elements */
+        .background-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .medical-icon {
+            position: absolute;
+            opacity: 0.1;
+            filter: brightness(2);
+        }
+
+        /* Floating text elements */
+        .floating-text {
+            position: absolute;
+            color: rgba(255, 255, 255, 0.1);
+            font-family: monospace;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* Add grid lines */
+        .grid-lines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+    </style>
+    <!-- Add viewport meta tag in head section -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+<body>
+    <div class="background-elements">
+        <div class="grid-lines"></div>
+        <div class="dna-helix">
+            <div class="dna-strand"></div>
+        </div>
+    </div>
+    <div class="login-container">
+        <h1 class="login-title">Hkare Research Assistant</h1>
+        
+        <!-- Login Form -->
+        <div id="loginContainer" class="auth-container active">
+            <div class="form-title">Login</div>
+            <form id="loginForm" onsubmit="handleEmailLogin(event)">
+                <input type="email" id="loginEmail" placeholder="Email" class="input-field" required>
+                <input type="password" id="loginPassword" placeholder="Password" class="input-field" required>
+                <div class="forgot-password">
+                    <button type="button" onclick="toggleAuth('reset')">Forgot Password?</button>
+                </div>
+                <button type="submit" class="login-button">Login</button>
+            </form>
+            <div class="auth-toggle">
+                <button onclick="toggleAuth('signup')">Don't have an account? Sign up</button>
+            </div>
+        </div>
+        
+        <!-- Signup Form -->
+        <div id="signupContainer" class="auth-container">
+            <div class="form-title">Create Account</div>
+            <form id="signupForm" onsubmit="handleSignup(event)">
+                <input type="email" id="signupEmail" placeholder="Email" class="input-field" required>
+                <input type="password" id="signupPassword" placeholder="Password" class="input-field" required>
+                <button type="submit" class="signup-button">Sign Up</button>
+            </form>
+            <div class="auth-toggle">
+                <button onclick="toggleAuth('login')">Already have an account? Login</button>
+            </div>
+        </div>
+
+        <!-- Password Reset Form -->
+        <div id="resetContainer" class="auth-container">
+            <div class="form-title">Reset Password</div>
+            <form id="resetForm" onsubmit="handlePasswordReset(event)">
+                <input type="email" id="resetEmail" placeholder="Email" class="input-field" required>
+                <button type="submit" class="login-button">Send Reset Link</button>
+            </form>
+            <div class="auth-toggle">
+                <button onclick="toggleAuth('login')">Back to Login</button>
+            </div>
+        </div>
+        
+        <div class="divider">OR</div>
+        
+        <!-- Google Sign In -->
+        <button onclick="handleGoogleSignIn()" class="google-button">
+            <img src="https://www.google.com/favicon.ico" alt="Google" class="google-icon">
+            Sign in with Google
+        </button>
+        
+        <div id="error-message" class="error-message"></div>
+        <div id="success-message" class="success-message"></div>
+    </div>
+
+    <div class="background-pattern"></div>
+    <div class="microscope-icon"></div>
+    <div class="circles">
+        <!-- Circles will be added by JavaScript -->
+    </div>
+
+    <script>
+        function toggleAuth(mode) {
+            // Hide all containers
+            document.querySelectorAll('.auth-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            
+            // Show selected container
+            if (mode === 'login') {
+                document.getElementById('loginContainer').classList.add('active');
+            } else if (mode === 'signup') {
+                document.getElementById('signupContainer').classList.add('active');
+            } else if (mode === 'reset') {
+                document.getElementById('resetContainer').classList.add('active');
+            }
+            
+            // Clear messages
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        async function handlePasswordReset(event) {
+            event.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+            
+            try {
+                await window.sendPasswordResetEmail(window.auth, email);
+                const successMsg = document.getElementById('success-message');
+                successMsg.textContent = 'Password reset email sent! Please check your inbox.';
+                successMsg.style.display = 'block';
+                
+                document.getElementById('resetForm').reset();
+                
+                setTimeout(() => {
+                    toggleAuth('login');
+                }, 3000);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this email address.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many password reset attempts. Please try again later.';
+                        break;
+                    default:
+                        errorMessage = 'Password reset failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function handleEmailLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                const idToken = await userCredential.user.getIdToken();
+                await verifyTokenWithBackend(idToken);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/invalid-credential':
+                    case 'auth/wrong-password':
+                        errorMessage = 'Invalid email or password. Please try again.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this email. Please sign up first.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'This account has been disabled. Please contact support.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Too many failed login attempts. Please try again later.';
+                        break;
+                    default:
+                        errorMessage = 'Login failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            try {
+                const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+                const idToken = await userCredential.user.getIdToken();
+                await verifyTokenWithBackend(idToken);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'An account with this email already exists. Please login instead.';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Password is too weak. Please use at least 6 characters.';
+                        break;
+                    default:
+                        errorMessage = 'Sign up failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function handleGoogleSignIn() {
+            try {
+                const result = await window.signInWithPopup(window.auth, window.provider);
+                const idToken = await result.user.getIdToken();
+                await verifyTokenWithBackend(idToken);
+            } catch (error) {
+                let errorMessage;
+                switch (error.code) {
+                    case 'auth/popup-blocked':
+                        errorMessage = 'Pop-up was blocked by your browser. Please allow pop-ups for this site.';
+                        break;
+                    case 'auth/popup-closed-by-user':
+                        errorMessage = 'Sign in was cancelled. Please try again.';
+                        break;
+                    case 'auth/unauthorized-domain':
+                        errorMessage = 'This domain is not authorized for Google sign-in. Please contact support.';
+                        break;
+                    case 'auth/cancelled-popup-request':
+                        errorMessage = 'Only one pop-up window is allowed at a time.';
+                        break;
+                    default:
+                        errorMessage = 'Google sign in failed. Please try again.';
+                }
+                showError(errorMessage);
+            }
+        }
+
+        async function verifyTokenWithBackend(idToken) {
+            try {
+                const response = await fetch('/verify-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: idToken }),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Backend verification failed');
+                }
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.href = '/app';
+                } else {
+                    throw new Error('Token verification failed');
+                }
+            } catch (error) {
+                showError('Token verification failed: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        // Check if user is already signed in
+        window.auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    const token = await user.getIdToken();
+                    await verifyTokenWithBackend(token);
+                } catch (error) {
+                    console.error('Auto-login failed:', error);
+                    showError('Auto-login failed: ' + error.message);
+                }
+            }
+        });
+
+        // Create DNA strands
+        const dnaHelix = document.querySelector('.dna-helix');
+        for (let i = 0; i < 20; i++) {
+            const strand = document.createElement('div');
+            strand.className = 'dna-strand';
+            dnaHelix.appendChild(strand);
+        }
+
+        // Create floating particles
+        const particles = document.querySelector('.particles');
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.opacity = Math.random() * 0.5;
+            particles.appendChild(particle);
+        }
+
+        // Create floating circles
+        const circles = document.querySelector('.circles');
+        for (let i = 0; i < 15; i++) {
+            const circle = document.createElement('div');
+            circle.className = 'circle';
+            circle.style.width = Math.random() * 50 + 20 + 'px';
+            circle.style.height = circle.style.width;
+            circle.style.left = Math.random() * 100 + '%';
+            circle.style.top = Math.random() * 100 + '%';
+            circle.style.animationDelay = Math.random() * 5 + 's';
+            circle.style.animationDuration = Math.random() * 10 + 15 + 's';
+            circles.appendChild(circle);
+        }
+
+        // Create floating elements
+        function createFloatingElements() {
+            const container = document.querySelector('.background-elements');
+            
+            // Add medical icons
+            const icons = ['🧬', '⚕️', '🔬', '📊', '��'];
+            for (let i = 0; i < 10; i++) {
+                const icon = document.createElement('div');
+                icon.className = 'medical-icon';
+                icon.textContent = icons[Math.floor(Math.random() * icons.length)];
+                icon.style.left = Math.random() * 100 + 'vw';
+                icon.style.top = Math.random() * 100 + 'vh';
+                icon.style.fontSize = (Math.random() * 20 + 20) + 'px';
+                icon.style.animation = `float ${Math.random() * 5 + 5}s ease-in-out infinite`;
+                container.appendChild(icon);
+            }
+
+            // Add floating text elements
+            const texts = ['DNA', 'RNA', 'RESEARCH', 'ANALYSIS', 'DATA'];
+            for (let i = 0; i < 8; i++) {
+                const text = document.createElement('div');
+                text.className = 'floating-text';
+                text.textContent = texts[Math.floor(Math.random() * texts.length)];
+                text.style.left = Math.random() * 100 + 'vw';
+                text.style.top = Math.random() * 100 + 'vh';
+                text.style.fontSize = (Math.random() * 14 + 10) + 'px';
+                text.style.opacity = 0.1;
+                text.style.animation = `float ${Math.random() * 5 + 5}s ease-in-out infinite`;
+                container.appendChild(text);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', createFloatingElements);
+    </script>
+</body>
+</html> 
